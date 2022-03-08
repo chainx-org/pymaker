@@ -55,7 +55,8 @@ logger = logging.getLogger()
 
 def web3_via_http(endpoint_uri: str, timeout=60, http_pool_size=20):
     assert isinstance(endpoint_uri, str)
-    adapter = requests.adapters.HTTPAdapter(pool_connections=http_pool_size, pool_maxsize=http_pool_size)
+    adapter = requests.adapters.HTTPAdapter(
+        pool_connections=http_pool_size, pool_maxsize=http_pool_size)
     session = requests.Session()
     if endpoint_uri.startswith("http"):
         # Mount over both existing adaptors created by default (rather than just the one which applies to our URI)
@@ -64,7 +65,8 @@ def web3_via_http(endpoint_uri: str, timeout=60, http_pool_size=20):
     else:
         raise ValueError("Unsupported protocol")
 
-    web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri, request_kwargs={"timeout": timeout}, session=session))
+    web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri,
+                request_kwargs={"timeout": timeout}, session=session))
     if web3.net.version == "5":  # goerli
         web3.middleware_onion.inject(geth_poa_middleware, layer=0)
     return web3
@@ -84,7 +86,8 @@ def _get_nonce_calc(web3: Web3) -> NonceCalculation:
         providers_without_nonce_calculation = ['infura', 'quiknode']
         requires_serial_nonce = any(provider in web3.manager.provider.endpoint_uri for provider in
                                     providers_without_nonce_calculation)
-        is_parity = "parity" in web3.clientVersion.lower() or "openethereum" in web3.clientVersion.lower()
+        is_parity = "parity" in web3.clientVersion.lower(
+        ) or "openethereum" in web3.clientVersion.lower()
         if is_parity and requires_serial_nonce:
             nonce_calc[web3] = NonceCalculation.PARITY_SERIAL
         elif requires_serial_nonce:
@@ -93,7 +96,8 @@ def _get_nonce_calc(web3: Web3) -> NonceCalculation:
             nonce_calc[web3] = NonceCalculation.PARITY_NEXTNONCE
         else:
             nonce_calc[web3] = NonceCalculation.TX_COUNT
-        logger.debug(f"node clientVersion={web3.clientVersion}, will use {nonce_calc[web3]}")
+        logger.debug(
+            f"node clientVersion={web3.clientVersion}, will use {nonce_calc[web3]}")
     return nonce_calc[web3]
 
 
@@ -154,6 +158,7 @@ class Address:
     Attributes:
         address: Normalized hexadecimal representation of the Ethereum address.
     """
+
     def __init__(self, address):
         if isinstance(address, Address):
             self.address = address.address
@@ -208,8 +213,8 @@ class Contract:
         assert(isinstance(abi, list))
         assert(isinstance(address, Address))
 
-        if not is_contract_at(web3, address):
-            raise Exception(f"No contract found at {address}")
+        # if not is_contract_at(web3, address):
+        #     raise Exception(f"No contract found at {address}")
 
         return web3.eth.contract(abi=abi)(address=address.address)
 
@@ -255,6 +260,7 @@ class Calldata:
     Attributes:
         value: Calldata as either a string starting with `0x`, or as bytes.
     """
+
     def __init__(self, value):
         if isinstance(value, str):
             assert(value.startswith('0x'))
@@ -281,7 +287,8 @@ class Calldata:
         fn_args_type = [{"type": type} for type in fn_split[1:] if type]
 
         fn_abi = {"type": "function", "name": fn_name, "inputs": fn_args_type}
-        fn_abi, fn_selector, fn_arguments = get_function_info("test", abi_codec=web3.codec, fn_abi=fn_abi, args=fn_args)
+        fn_abi, fn_selector, fn_arguments = get_function_info(
+            "test", abi_codec=web3.codec, fn_abi=fn_abi, args=fn_args)
 
         calldata = encode_abi(web3, fn_abi, fn_arguments, fn_selector)
 
@@ -297,7 +304,8 @@ class Calldata:
         fn_split = re.split('[(),]', fn_sign)
         fn_name = fn_split[0]
 
-        fn_abi, fn_selector, fn_arguments = get_function_info(fn_name, abi_codec=web3.codec, contract_abi=contract_abi, args=fn_args)
+        fn_abi, fn_selector, fn_arguments = get_function_info(
+            fn_name, abi_codec=web3.codec, contract_abi=contract_abi, args=fn_args)
         calldata = encode_abi(web3, fn_abi, fn_arguments, fn_selector)
 
         return cls(calldata)
@@ -327,6 +335,7 @@ class Invocation(object):
         address: Contract address.
         calldata: The calldata of the invocation.
     """
+
     def __init__(self, address: Address, calldata: Calldata):
         assert(isinstance(address, Address))
         assert(isinstance(calldata, Calldata))
@@ -350,6 +359,7 @@ class Receipt:
             was successful. We consider transaction successful if the contract
             method has been executed without throwing.
     """
+
     def __init__(self, receipt):
         self.raw_receipt = receipt
         self.transaction_hash = receipt['transactionHash']
@@ -366,13 +376,17 @@ class Receipt:
                     # 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
                     if receipt_log['topics'][0] == HexBytes('0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'):
                         from pymaker.token import ERC20Token
-                        transfer_abi = [abi for abi in ERC20Token.abi if abi.get('name') == 'Transfer'][0]
+                        transfer_abi = [abi for abi in ERC20Token.abi if abi.get(
+                            'name') == 'Transfer'][0]
                         codec = ABICodec(default_registry)
                         try:
-                            event_data = get_event_data(codec, transfer_abi, receipt_log)
+                            event_data = get_event_data(
+                                codec, transfer_abi, receipt_log)
                             self.transfers.append(Transfer(token_address=Address(event_data['address']),
-                                                           from_address=Address(event_data['args']['from']),
-                                                           to_address=Address(event_data['args']['to']),
+                                                           from_address=Address(
+                                                               event_data['args']['from']),
+                                                           to_address=Address(
+                                                               event_data['args']['to']),
                                                            value=Wad(event_data['args']['value'])))
                         # UniV3 Mint logIndex: 3 has an NFT mint of 1, from null, to a given address, but only 2 types (address, address)
                         except LogTopicError:
@@ -382,24 +396,32 @@ class Receipt:
                     # 0x0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885
                     if receipt_log['topics'][0] == HexBytes('0x0f6798a560793a54c3bcfe86a93cde1e73087d944c0ea20544137d4121396885'):
                         from pymaker.token import DSToken
-                        transfer_abi = [abi for abi in DSToken.abi if abi.get('name') == 'Mint'][0]
+                        transfer_abi = [
+                            abi for abi in DSToken.abi if abi.get('name') == 'Mint'][0]
                         codec = ABICodec(default_registry)
-                        event_data = get_event_data(codec, transfer_abi, receipt_log)
+                        event_data = get_event_data(
+                            codec, transfer_abi, receipt_log)
                         self.transfers.append(Transfer(token_address=Address(event_data['address']),
-                                                       from_address=Address('0x0000000000000000000000000000000000000000'),
-                                                       to_address=Address(event_data['args']['guy']),
+                                                       from_address=Address(
+                                                           '0x0000000000000000000000000000000000000000'),
+                                                       to_address=Address(
+                                                           event_data['args']['guy']),
                                                        value=Wad(event_data['args']['wad'])))
 
                     # $ seth keccak $(seth --from-ascii "Burn(address,uint256)")
                     # 0xcc16f5dbb4873280815c1ee09dbd06736cffcc184412cf7a71a0fdb75d397ca5
                     if receipt_log['topics'][0] == HexBytes('0xcc16f5dbb4873280815c1ee09dbd06736cffcc184412cf7a71a0fdb75d397ca5'):
                         from pymaker.token import DSToken
-                        transfer_abi = [abi for abi in DSToken.abi if abi.get('name') == 'Burn'][0]
+                        transfer_abi = [
+                            abi for abi in DSToken.abi if abi.get('name') == 'Burn'][0]
                         codec = ABICodec(default_registry)
-                        event_data = get_event_data(codec, transfer_abi, receipt_log)
+                        event_data = get_event_data(
+                            codec, transfer_abi, receipt_log)
                         self.transfers.append(Transfer(token_address=Address(event_data['address']),
-                                                       from_address=Address(event_data['args']['guy']),
-                                                       to_address=Address('0x0000000000000000000000000000000000000000'),
+                                                       from_address=Address(
+                                                           event_data['args']['guy']),
+                                                       to_address=Address(
+                                                           '0x0000000000000000000000000000000000000000'),
                                                        value=Wad(event_data['args']['wad'])))
 
         else:
@@ -411,9 +433,9 @@ class Receipt:
 
 
 class TransactStatus(Enum):
-     NEW = auto()
-     IN_PROGRESS = auto()
-     FINISHED = auto()
+    NEW = auto()
+    IN_PROGRESS = auto()
+    FINISHED = auto()
 
 
 def get_pending_transactions(web3: Web3, address: Address = None) -> list:
@@ -427,14 +449,17 @@ def get_pending_transactions(web3: Web3, address: Address = None) -> list:
     # Get the list of pending transactions and their details from specified sources
     if _get_nonce_calc(web3) in (NonceCalculation.PARITY_NEXTNONCE, NonceCalculation.PARITY_SERIAL):
         items = web3.manager.request_blocking("parity_pendingTransactions", [])
-        items = filter(lambda item: item['from'].lower() == address.address.lower(), items)
+        items = filter(lambda item: item['from'].lower(
+        ) == address.address.lower(), items)
         items = filter(lambda item: item['blockNumber'] is None, items)
         txes = map(lambda item: RecoveredTransact(web3=web3, address=address, nonce=int(item['nonce'], 16),
                                                   latest_tx_hash=item['hash'], current_gas=int(item['gasPrice'], 16)),
                    items)
     else:
-        items = web3.manager.request_blocking("eth_getBlockByNumber", ["pending", True])['transactions']
-        items = filter(lambda item: item['from'].lower() == address.address.lower(), items)
+        items = web3.manager.request_blocking(
+            "eth_getBlockByNumber", ["pending", True])['transactions']
+        items = filter(lambda item: item['from'].lower(
+        ) == address.address.lower(), items)
         list(items)  # Unsure why this is required
         txes = map(lambda item: RecoveredTransact(web3=web3, address=address, nonce=item['nonce'],
                                                   latest_tx_hash=item['hash'], current_gas=item['gasPrice']),
@@ -491,10 +516,12 @@ class Transact:
             raw_receipt = self.web3.eth.getTransactionReceipt(transaction_hash)
             if raw_receipt is not None and raw_receipt['blockNumber'] is not None:
                 receipt = Receipt(raw_receipt)
-                receipt.result = self.result_function(receipt) if self.result_function is not None else None
+                receipt.result = self.result_function(
+                    receipt) if self.result_function is not None else None
                 return receipt
         except (TransactionNotFound, ValueError):
-            self.logger.debug(f"Transaction {transaction_hash} not found (may have been dropped/replaced)")
+            self.logger.debug(
+                f"Transaction {transaction_hash} not found (may have been dropped/replaced)")
         return None
 
     def _as_dict(self, dict_or_none) -> dict:
@@ -505,7 +532,8 @@ class Transact:
 
     def _gas(self, gas_estimate: int, **kwargs) -> int:
         if 'gas' in kwargs and 'gas_buffer' in kwargs:
-            raise Exception('"gas" and "gas_buffer" keyword arguments may not be specified at the same time')
+            raise Exception(
+                '"gas" and "gas_buffer" keyword arguments may not be specified at the same time')
 
         if 'gas' in kwargs:
             return kwargs['gas']
@@ -515,7 +543,8 @@ class Transact:
             return gas_estimate + 100000
 
     def _func(self, from_account: str, gas: int, gas_price: Optional[int], nonce: Optional[int]):
-        gas_price_dict = {'gasPrice': gas_price} if gas_price is not None else {}
+        gas_price_dict = {
+            'gasPrice': gas_price} if gas_price is not None else {}
         nonce_dict = {'nonce': nonce} if nonce is not None else {}
 
         transaction_params = {**{'from': from_account, 'gas': gas},
@@ -537,10 +566,12 @@ class Transact:
 
     def _contract_function(self):
         if '(' in self.function_name:
-            function_factory = self.contract.get_function_by_signature(self.function_name)
+            function_factory = self.contract.get_function_by_signature(
+                self.function_name)
 
         else:
-            function_factory = self.contract.get_function_by_name(self.function_name)
+            function_factory = self.contract.get_function_by_name(
+                self.function_name)
 
         return function_factory(*self.parameters)
 
@@ -557,7 +588,8 @@ class Transact:
                 else:
                     return parameter
 
-            formatted_parameters = str(list(map(format_parameter, self.parameters))).lstrip("[").rstrip("]")
+            formatted_parameters = str(
+                list(map(format_parameter, self.parameters))).lstrip("[").rstrip("]")
             name = f"{repr(self.origin)}.{self.function_name}({formatted_parameters})"
         else:
             name = f"Regular transfer to {self.address}"
@@ -585,7 +617,7 @@ class Transact:
 
             else:
                 estimate = self._contract_function() \
-                        .estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}})
+                    .estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}})
 
         else:
             estimate = 21000
@@ -640,14 +672,17 @@ class Transact:
 
         global next_nonce
         self.initial_time = time.time()
-        unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price'}
+        unknown_kwargs = set(
+            kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price'}
         if len(unknown_kwargs) > 0:
             raise ValueError(f"Unknown kwargs: {unknown_kwargs}")
 
         # Get the from account; initialize the first nonce for the account.
-        from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
+        from_account = kwargs['from_address'].address if (
+            'from_address' in kwargs) else self.web3.eth.defaultAccount
         if not next_nonce or from_account not in next_nonce:
-            next_nonce[from_account] = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+            next_nonce[from_account] = self.web3.eth.getTransactionCount(
+                from_account, block_identifier='pending')
 
         # First we try to estimate the gas usage of the transaction. If gas estimation fails
         # it means there is no point in sending the transaction, thus we fail instantly and
@@ -658,15 +693,18 @@ class Transact:
             gas_estimate = self.estimated_gas(Address(from_account))
         except:
             if Transact.gas_estimate_for_bad_txs:
-                self.logger.warning(f"Transaction {self.name()} will fail, submitting anyway")
+                self.logger.warning(
+                    f"Transaction {self.name()} will fail, submitting anyway")
                 gas_estimate = Transact.gas_estimate_for_bad_txs
             else:
-                self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()[1]})")
+                self.logger.warning(
+                    f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()[1]})")
                 return None
 
         # Get or calculate `gas`. Get `gas_price`, which in fact refers to a gas pricing algorithm.
         gas = self._gas(gas_estimate, **kwargs)
-        self.gas_price = kwargs['gas_price'] if ('gas_price' in kwargs) else DefaultGasPrice()
+        self.gas_price = kwargs['gas_price'] if (
+            'gas_price' in kwargs) else DefaultGasPrice()
         assert(isinstance(self.gas_price, GasPrice))
 
         # Get the transaction this one is supposed to replace.
@@ -698,14 +736,16 @@ class Transact:
                 # If it has, we return either the receipt (if if was successful) or `None`.
                 for attempt in range(1, 11):
                     if self.replaced:
-                        self.logger.info(f"Transaction with nonce={self.nonce} was replaced with a newer transaction")
+                        self.logger.info(
+                            f"Transaction with nonce={self.nonce} was replaced with a newer transaction")
                         return None
 
                     for tx_hash in self.tx_hashes:
                         receipt = self._get_receipt(tx_hash)
                         if receipt:
                             if receipt.successful:
-                                self.logger.info(f"Transaction {self.name()} was successful (tx_hash={tx_hash})")
+                                self.logger.info(
+                                    f"Transaction {self.name()} was successful (tx_hash={tx_hash})")
                                 return receipt
                             else:
                                 self.logger.warning(f"Transaction {self.name()} mined successfully but generated no single"
@@ -725,7 +765,8 @@ class Transact:
 
             # Trap replacement after the tx has entered the mempool and before it has been mined
             if self.replaced:
-                self.logger.info(f"Transaction {self.name()} with nonce={self.nonce} is being replaced")
+                self.logger.info(
+                    f"Transaction {self.name()} with nonce={self.nonce} is being replaced")
                 return None
 
             # Send a transaction if:
@@ -733,7 +774,8 @@ class Transact:
             # - the requested gas price has changed enough since the last transaction has been sent
             # - the gas price on a replacement has sufficiently exceeded that of the original transaction
             gas_price_value = self.gas_price.get_gas_price(seconds_elapsed)
-            transaction_was_sent = len(self.tx_hashes) > 0 or (replaced_tx is not None and len(replaced_tx.tx_hashes) > 0)
+            transaction_was_sent = len(self.tx_hashes) > 0 or (
+                replaced_tx is not None and len(replaced_tx.tx_hashes) > 0)
             # Uncomment this to debug state during transaction submission
             # self.logger.debug(f"Transaction {self.name()} is churning: was_sent={transaction_was_sent}, gas_price_value={gas_price_value} gas_price_last={self.gas_price_last}")
             if not transaction_was_sent or (gas_price_value is not None and gas_price_value > self.gas_price_last * 1.125):
@@ -745,25 +787,31 @@ class Transact:
                         if self.nonce is None:
                             nonce_calculation = _get_nonce_calc(self.web3)
                             if nonce_calculation == NonceCalculation.PARITY_NEXTNONCE:
-                                self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
+                                self.nonce = int(self.web3.manager.request_blocking(
+                                    "parity_nextNonce", [from_account]), 16)
                             elif nonce_calculation == NonceCalculation.TX_COUNT:
-                                self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+                                self.nonce = self.web3.eth.getTransactionCount(
+                                    from_account, block_identifier='pending')
                             elif nonce_calculation == NonceCalculation.SERIAL:
-                                tx_count = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+                                tx_count = self.web3.eth.getTransactionCount(
+                                    from_account, block_identifier='pending')
                                 next_serial = next_nonce[from_account]
                                 self.nonce = max(tx_count, next_serial)
                             elif nonce_calculation == NonceCalculation.PARITY_SERIAL:
-                                tx_count = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
+                                tx_count = int(self.web3.manager.request_blocking(
+                                    "parity_nextNonce", [from_account]), 16)
                                 next_serial = next_nonce[from_account]
                                 self.nonce = max(tx_count, next_serial)
                             next_nonce[from_account] = self.nonce + 1
 
                         # Trap replacement while original is holding the lock awaiting nonce assignment
                         if self.replaced:
-                            self.logger.info(f"Transaction {self.name()} with nonce={self.nonce} was replaced")
+                            self.logger.info(
+                                f"Transaction {self.name()} with nonce={self.nonce} was replaced")
                             return None
 
-                        tx_hash = self._func(from_account, gas, gas_price_value, self.nonce)
+                        tx_hash = self._func(
+                            from_account, gas, gas_price_value, self.nonce)
                         self.tx_hashes.append(tx_hash)
 
                     self.logger.info(f"Sent transaction {self.name()} with nonce={self.nonce}, gas={gas},"
@@ -799,6 +847,7 @@ class RecoveredTransact(Transact):
     These can be created by a call to `get_pending_transactions`, enabling the consumer to implement logic which
     cancels pending transactions upon keeper/bot startup.
     """
+
     def __init__(self, web3: Web3,
                  address: Address,
                  nonce: int,
@@ -855,7 +904,8 @@ class RecoveredTransact(Transact):
             for tx_hash in self.tx_hashes:
                 receipt = self._get_receipt(tx_hash)
                 if receipt:
-                    self.logger.info(f"{self.name()} was cancelled (tx_hash={tx_hash})")
+                    self.logger.info(
+                        f"{self.name()} was cancelled (tx_hash={tx_hash})")
                     return
 
             await asyncio.sleep(0.75)
@@ -873,6 +923,7 @@ class Transfer:
         to_address: Destination address of the transfer.
         value: Value transferred.
     """
+
     def __init__(self, token_address: Address, from_address: Address, to_address: Address, value: Wad):
         assert(isinstance(token_address, Address))
         assert(isinstance(from_address, Address))
@@ -886,9 +937,9 @@ class Transfer:
     def __eq__(self, other):
         assert(isinstance(other, Transfer))
         return self.token_address == other.token_address and \
-               self.from_address == other.from_address and \
-               self.to_address == other.to_address and \
-               self.value == other.value
+            self.from_address == other.from_address and \
+            self.to_address == other.to_address and \
+            self.value == other.value
 
     def __hash__(self):
         return hash((self.token_address, self.from_address, self.token_address, self.value))
