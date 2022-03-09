@@ -457,9 +457,8 @@ def get_pending_transactions(web3: Web3, address: Address = None) -> list:
                                                   latest_tx_hash=item['hash'], current_gas=int(item['gasPrice'], 16)),
                    items)
     else:
-        block_number = web3.eth.blockNumber
         items = web3.manager.request_blocking(
-            "eth_getBlockByNumber", [block_number, True])['transactions']
+            "eth_getBlockByNumber", ["latest", True])['transactions']
         items = filter(lambda item: item['from'].lower(
         ) == address.address.lower(), items)
         list(items)  # Unsure why this is required
